@@ -1,0 +1,18 @@
+[package]
+name = "prevent-alt-win-menu"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+log = ["dep:log"]
+
+[dependencies]
+log = { version = "0.4.27", optional = true }
+thiserror = "2.0.12"
+windows = { version = "0.61.1", features = [
+  "Win32_System_Console",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+] }
