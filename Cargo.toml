@@ -1,7 +1,19 @@
 [package]
 name = "prevent-alt-win-menu"
+description = "Prevents the menu bar or Start menu from appearing when the Alt or Windows key is released"
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/noriapi/prevent-alt-win-menu"
+readme = "README.md"
+keywords = ["windows", "start-menu", "menu-bar", "alt-key", "win-key"]
+categories = [
+  "accessibility",
+  "api-bindings",
+  "config",
+  "gui",
+  "os::windows-apis",
+]
 
 [features]
 log = ["dep:log"]
