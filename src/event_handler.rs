@@ -1,4 +1,16 @@
-//! Handles `MenuTriggerEvent`s.
+//! Process keyboard events and suppress menu activation, providing interfaces for customization.
+//!
+//! This module provides mechanisms to process keyboard events and suppress menu activation,
+//! along with interfaces to customize this behavior.
+//!
+//! If you only want to suppress the menu activation triggered by Alt or Win keys,
+//! using `prevent_alt_win_menu::start` is simpler.
+//! However, if you already obtain keyboard events through other means,
+//! you can implement the [`MenuTriggerEvent`] trait for those event types
+//! and pass them to `start_event_handler` to create a custom menu suppression mechanism.
+//!
+//! In other words, this module offers a flexible way to integrate with existing keyboard event sources
+//! and suppress menu activation accordingly.
 
 use std::{fmt::Display, thread, time::Duration};
 
@@ -241,6 +253,17 @@ pub struct Config<T = KeyboardEvent> {
 }
 
 impl<T> Config<T> {
+    /// Sets the callback function to be invoked when a key is released.
+    ///
+    /// This method updates the `on_released` field with the provided function,
+    /// which takes a [`HoldEvent`] representing the press and release of a modifier key.
+    /// The callback should return a dummy [`VIRTUAL_KEY`] to send, or `None` if no key should be sent.
+    ///
+    /// # Arguments
+    /// - `f`: A closure or function of type `Fn(HoldEvent<T>) -> Option<VIRTUAL_KEY>`.
+    ///
+    /// # Returns
+    /// A modified [`Config`] instance with the new callback set (builder pattern).
     pub fn set_on_released<F: Fn(HoldEvent<T>) -> Option<VIRTUAL_KEY> + Send + Sync + 'static>(
         mut self,
         f: F,
@@ -258,6 +281,17 @@ impl<T> Default for Config<T> {
     }
 }
 
+/// Sends a key-up event for the specified virtual key code.
+///
+/// This function uses the Windows `SendInput` API to emit a `KEYEVENTF_KEYUP`
+/// event for the given key. It is typically used to suppress system behavior
+/// such as menu activation after pressing modifier keys like Alt or Win.
+///
+/// # Arguments
+/// - `dummy_key`: The virtual key code for which to send a key-up event.
+///
+/// # Returns
+/// Returns `Ok(())` if the event was successfully sent, or an `std::io::Error` if it failed.
 pub fn send_keyup(dummy_key: VIRTUAL_KEY) -> std::io::Result<()> {
     send_input(&[INPUT {
         r#type: INPUT_KEYBOARD,
@@ -289,13 +323,23 @@ fn send_input(inputs: &[INPUT]) -> std::io::Result<()> {
     }
 }
 
+/// Represents a single keyboard event received via a Windows low-level keyboard hook.
+///
+/// Internally contains the raw Windows [`KBDLLHOOKSTRUCT`] and the associated event type
+/// (e.g., key down or key up).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KeyboardEvent {
+    /// The raw Windows keyboard event structure.
     pub kbd: KBDLLHOOKSTRUCT,
+    /// The raw Windows keyboard event structure.
     pub wm_key_state: WmKeyState,
 }
 
 impl KeyboardEvent {
+    /// Constructs a `KeyboardEvent` from `l_param` and `w_param` inside a Windows hook procedure.
+    ///
+    /// # Safety
+    /// `l_param` must be a valid pointer to a `KBDLLHOOKSTRUCT`.
     pub(crate) unsafe fn from_params(l_param: LPARAM, w_param: WPARAM) -> KeyboardEvent {
         let kbd = unsafe { *(l_param.0 as *const KBDLLHOOKSTRUCT) };
         let key_state = WmKeyState::from_w_param(w_param).unwrap();
@@ -305,10 +349,12 @@ impl KeyboardEvent {
         }
     }
 
+    /// Returns the virtual key code of the event.
     pub fn virtual_key(&self) -> VIRTUAL_KEY {
         VIRTUAL_KEY(self.kbd.vkCode as _)
     }
 
+    /// Returns the duration elapsed since the given earlier event.
     pub fn duration_since(&self, earlier: &Self) -> Duration {
         let millis = self.kbd.time.wrapping_sub(earlier.kbd.time);
         Duration::from_millis(millis as u64)
@@ -330,24 +376,31 @@ impl MenuTriggerEvent for KeyboardEvent {
 }
 
 impl HoldEvent<KeyboardEvent> {
+    /// Returns the duration between the key press and release.
     pub fn duration(&self) -> Duration {
         self.release.duration_since(&self.press)
     }
 }
 
+/// Represents the type of Windows message related to a keyboard event.
+///
+/// See also: [Keyboard Input](https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-messages)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WmKeyState {
-    /// [WM_KEYDOWN](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown)
+    /// [`WM_KEYDOWN`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keydown)
     KeyDown,
-    /// [WM_KEYUP](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keyup)
+    /// [`WM_KEYUP`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-keyup)
     KeyUp,
-    /// [WM_SYSKEYDOWN](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown)
+    /// [`WM_SYSKEYDOWN`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-syskeydown)
     SysKeyDown,
-    /// [WM_SYSKEYUP](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup)
+    /// [`WM_SYSKEYUP`](https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-syskeyup)
     SysKeyUp,
 }
 
 impl WmKeyState {
+    /// Converts a `w_param` to the corresponding `WmKeyState`, if applicable.
+    ///
+    /// Returns `None` if the value does not match a known key message.
     fn from_w_param(w_param: WPARAM) -> Option<WmKeyState> {
         if w_param.0 == WM_KEYDOWN as usize {
             Some(WmKeyState::KeyDown)
@@ -362,10 +415,12 @@ impl WmKeyState {
         }
     }
 
+    /// Returns `true` if this is a key-down event.
     pub fn is_key_down(&self) -> bool {
         KeyState::from(*self) == KeyState::Down
     }
 
+    /// Returns `true` if this is a key-up event.
     pub fn is_key_up(&self) -> bool {
         !self.is_key_down()
     }
