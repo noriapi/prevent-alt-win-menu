@@ -300,7 +300,7 @@ impl WmKeyState {
     }
 
     pub fn is_key_down(&self) -> bool {
-        matches!(self, WmKeyState::KeyDown | WmKeyState::SysKeyDown)
+        KeyState::from(*self) == KeyState::Down
     }
 
     pub fn is_key_up(&self) -> bool {
