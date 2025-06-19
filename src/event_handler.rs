@@ -1,3 +1,5 @@
+//! Handles `MenuTriggerEvent`s.
+
 use std::{fmt::Display, thread, time::Duration};
 
 use windows::Win32::{
@@ -13,6 +15,17 @@ use windows::Win32::{
 
 pub use windows::Win32::UI::WindowsAndMessaging::KBDLLHOOKSTRUCT;
 
+/// Starts an event-handling thread that processes each received event in a loop.
+///
+/// # Arguments
+/// - `rx`: The source of incoming events. Must be an `IntoIterator` whose items implement [`MenuTriggerEvent`].
+/// - `config`: Configuration used for event handling, such as the `on_released` callback.
+///
+/// # Returns
+/// A [`std::thread::JoinHandle`] that represents the running event-handling thread.
+///
+/// This function directly spawns a thread to process events in the background.
+/// It does not perform asynchronous operations.
 pub fn start_event_handler<
     T: MenuTriggerEvent + Clone + Send + 'static,
     I: IntoIterator<Item = T> + Send + 'static,
@@ -35,20 +48,37 @@ pub fn start_event_handler<
     })
 }
 
+/// A trait that abstracts keyboard events related to menu triggering.
+///
+/// By implementing this trait, you can consistently determine which key
+/// triggered a menu (e.g., Alt or Win) and whether the key was pressed or released.
 pub trait MenuTriggerEvent {
+    /// Returns the corresponding [`MenuTrigger`] for the key event.
+    ///
+    /// For example, return `Some(MenuTrigger::Alt)` for `LAlt` or `RAlt`,
+    /// and `Some(MenuTrigger::Win)` for `LWin` or `RWin`.
     fn menu_trigger(&self) -> Option<MenuTrigger>;
+
+    /// Returns the current state of the key (pressed or released).
     fn key_state(&self) -> KeyState;
+
+    /// Returns `true` if the key is currently pressed. (Default implementation provided.)
     fn is_key_down(&self) -> bool {
         matches!(self.key_state(), KeyState::Down)
     }
+
+    /// Returns `true` if the key is currently released. (Default implementation provided.)
     fn is_key_up(&self) -> bool {
         !self.is_key_down()
     }
 }
 
+/// Indicates which modifier key was used to trigger a menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuTrigger {
+    /// The Windows key (either left or right).
     Win,
+    /// The Alt key (either left or right).
     Alt,
 }
 
@@ -62,9 +92,12 @@ impl Display for MenuTrigger {
     }
 }
 
+/// Represents the state of a key: pressed or released.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyState {
+    /// The key is currently pressed.
     Down,
+    /// The key is currently released.
     Up,
 }
 
@@ -92,9 +125,25 @@ impl<T: MenuTriggerEvent + Clone> Handler<T> {
     }
 }
 
+/// Represents a sequence of events where a modifier key is pressed and then released.
+///
+/// Typically passed to callbacks like `on_released` to determine how to handle
+/// modifier key interactions.
+///
+/// Note: The key pressed and the key released may differ.
+/// For example, consider the following sequence:
+///
+/// 1. `LAlt` is pressed
+/// 2. `RAlt` is pressed
+/// 3. `LAlt` is released
+/// 4. `RAlt` is released
+///
+/// In this case, `press` may be `LAlt` and `release` may be `RAlt`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HoldEvent<T = KeyboardEvent> {
+    /// The event when the key was pressed.
     pub press: T,
+    /// The event when the key was released.
     pub release: T,
 }
 
@@ -170,10 +219,24 @@ impl<T> Default for HoldState<T> {
     }
 }
 
+/// A callback type invoked when a key is released.
+///
+/// Receives a [`HoldEvent`] and returns a virtual key code (dummy key) to send,
+/// or `None` if no key should be sent.
+///
+/// Sending a virtual key allows Windows to treat it as a hotkey input,
+/// which prevents the default menu from being displayed when Alt or Win is released.
 pub type OnReleasedFn<T = KeyboardEvent> =
     dyn Fn(HoldEvent<T>) -> Option<VIRTUAL_KEY> + Send + Sync + 'static;
 
+/// Configuration for the event handler's behavior.
+///
+/// Used to define how to handle a modifier key after it has been pressed and released.
+/// For example, you can specify a callback to send a dummy key to prevent menu activation.
+///
+/// By default, it returns `Some(VK__none_)` to always suppress menu activation.
 pub struct Config<T = KeyboardEvent> {
+    /// A callback invoked when a key is released after being pressed.
     pub on_released: Box<OnReleasedFn<T>>,
 }
 
