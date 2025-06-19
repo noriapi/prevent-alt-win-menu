@@ -246,7 +246,7 @@ impl KeyboardEvent {
         VIRTUAL_KEY(self.kbd.vkCode as _)
     }
 
-    fn duration_since(&self, earlier: &Self) -> Duration {
+    pub fn duration_since(&self, earlier: &Self) -> Duration {
         let millis = self.kbd.time.wrapping_sub(earlier.kbd.time);
         Duration::from_millis(millis as u64)
     }
