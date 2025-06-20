@@ -1,3 +1,14 @@
+//! Low-level module for starting a global keyboard hook on Windows.
+//!
+//! This module registers a system-wide low-level keyboard hook (`WH_KEYBOARD_LL`)
+//! and sends captured events as [`KeyboardEvent`]s through a channel.
+//!
+//! In most cases, it is recommended to use the higher-level API [`prevent_alt_win_menu::start`].
+//! Use this module directly only if you need custom keyboard event handling
+//! or fine-grained control over the hook behavior.
+//!
+//! # Public API
+//! - [`start_keyboard_hook`] — Starts the global keyboard hook and returns a receiver and thread handle.
 use std::{cell::OnceCell, sync::mpsc, thread};
 
 use windows::{
@@ -21,6 +32,25 @@ thread_local! {
     static GLOBAL_SENDER: OnceCell<mpsc::Sender<KeyboardEvent>> = const { OnceCell::new() };
 }
 
+/// Starts a global keyboard hook and spawns a thread to handle incoming events.
+///
+/// This function registers a low-level Windows keyboard hook that captures all
+/// keyboard input events system-wide and sends them through a channel.
+///
+/// The hook is run on a background thread. The function returns a `Receiver`
+/// for incoming `KeyboardEvent`s and the `JoinHandle` for the background thread.
+///
+/// # Returns
+/// - `Ok((rx, handle))`:
+///   - `rx`: A receiver that delivers captured keyboard events.
+///   - `handle`: A join handle for the background thread running the hook loop.
+///
+/// # Errors
+/// - Returns `Error::HookRegistrationFailed` if the keyboard hook fails to register.
+/// - Returns `Error::HookThreadCrashed` if the hook thread terminated unexpectedly.
+///
+/// # Note
+/// - Unhooking is not currently implemented. The hook will be released automatically when the process exits.
 pub fn start_keyboard_hook() -> Result<(mpsc::Receiver<KeyboardEvent>, thread::JoinHandle<()>)> {
     let (tx, rx) = mpsc::channel::<KeyboardEvent>();
 
