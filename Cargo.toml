@@ -20,6 +20,7 @@ log = ["dep:log"]
 
 [dependencies]
 log = { version = "0.4.27", optional = true }
+oneshot = "0.1.11"
 thiserror = "2.0.12"
 windows = { version = "0.61.1", features = [
   "Win32_System_Console",

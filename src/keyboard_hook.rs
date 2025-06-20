@@ -1,7 +1,4 @@
-use std::{
-    sync::{OnceLock, mpsc},
-    thread,
-};
+use std::{cell::OnceCell, sync::mpsc, thread};
 
 use windows::{
     Win32::{
@@ -20,36 +17,50 @@ use crate::{
     event_handler::KeyboardEvent,
 };
 
-static GLOBAL_SENDER: OnceLock<mpsc::Sender<KeyboardEvent>> = const { OnceLock::new() };
+thread_local! {
+    static GLOBAL_SENDER: OnceCell<mpsc::Sender<KeyboardEvent>> = const { OnceCell::new() };
+}
 
 pub fn start_keyboard_hook() -> Result<(mpsc::Receiver<KeyboardEvent>, thread::JoinHandle<()>)> {
     let (tx, rx) = mpsc::channel::<KeyboardEvent>();
-    GLOBAL_SENDER
-        .set(tx)
-        .map_err(|_| Error::AlreadyInitialized)?;
 
-    Ok((
-        rx,
-        thread::spawn(|| {
-            let _handle = unsafe { register_keyboard_hook(Some(low_level_keyboard_proc)) }
-                .inspect_err(|_e| {
-                    #[cfg(feature = "log")]
-                    log::error!("Failed to register keyboard hook: {}", _e);
-                })
-                .expect("Failed to register keyboard hook");
+    let (result_tx, result_rx) = oneshot::channel::<Result<()>>();
 
-            #[cfg(feature = "log")]
-            log::info!("registered keybord hook");
+    let join_handle = thread::spawn(move || {
+        GLOBAL_SENDER.with(|g| g.set(tx)).unwrap();
 
-            let mut msg = MSG::default();
-            unsafe {
-                while GetMessageW(&mut msg, None, 0, 0).into() {
-                    let _ = TranslateMessage(&msg);
-                    DispatchMessageW(&msg);
-                }
-            };
-        }),
-    ))
+        let hook_result = unsafe { register_keyboard_hook(Some(low_level_keyboard_proc)) };
+
+        let _hook_handle = match hook_result {
+            Err(e) => {
+                #[cfg(feature = "log")]
+                log::error!("Failed to register keyboard hook: {}", e);
+                let _ = result_tx.send(Err(Error::HookRegistrationFailed(e)));
+                return;
+            }
+            Ok(handle) => {
+                let _ = result_tx.send(Ok(()));
+                handle
+            }
+        };
+
+        #[cfg(feature = "log")]
+        log::info!("registered keybord hook");
+
+        let mut msg = MSG::default();
+        unsafe {
+            while GetMessageW(&mut msg, None, 0, 0).into() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
+    });
+
+    match result_rx.recv() {
+        Ok(Ok(_)) => Ok((rx, join_handle)),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err(Error::HookThreadCrashed),
+    }
 }
 
 unsafe extern "system" fn low_level_keyboard_proc(
@@ -60,18 +71,19 @@ unsafe extern "system" fn low_level_keyboard_proc(
     if n_code == HC_ACTION as i32 {
         let event = unsafe { KeyboardEvent::from_params(l_param, w_param) };
 
-        if let Some(sender) = GLOBAL_SENDER.get() {
+        GLOBAL_SENDER.with(|s| {
+            let sender = s.get().unwrap();
             if let Err(_e) = sender.send(event) {
                 #[cfg(feature = "log")]
                 log::error!("{}", _e);
             }
-        };
+        })
     }
 
     unsafe { CallNextHookEx(None, n_code, w_param, l_param) }
 }
 
-unsafe fn register_keyboard_hook(f: HOOKPROC) -> Result<Owned<HHOOK>> {
+unsafe fn register_keyboard_hook(f: HOOKPROC) -> std::io::Result<Owned<HHOOK>> {
     let keyboard_hook = unsafe {
         SetWindowsHookExW(
             WH_KEYBOARD_LL,
@@ -80,10 +92,6 @@ unsafe fn register_keyboard_hook(f: HOOKPROC) -> Result<Owned<HHOOK>> {
             0,
         )
     }?;
-
-    if keyboard_hook.is_invalid() {
-        return Err(std::io::Error::last_os_error().into());
-    }
 
     Ok(unsafe { Owned::new(keyboard_hook) })
 }
