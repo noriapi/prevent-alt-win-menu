@@ -37,10 +37,10 @@ for `WM_KEYUP` events of:
 
 - `VK_LWIN` / `VK_RWIN` (Left/Right Windows key)
 
-When such a key is released, a dummy keypress (by default, `VK__none_`) is programmatically
+When such a key is released, a dummy key-up event (by default, `VK__none_`) is programmatically
 sent immediately.
-This causes Windows to interpret the input as a hotkey sequence rather than a single
-keypress — effectively suppressing the default menu activation behavior.
+This causes Windows to interpret the input as a hotkey sequence rather than a standalone
+key release — effectively suppressing the default menu activation behavior.
 
 ## Configuration
 
