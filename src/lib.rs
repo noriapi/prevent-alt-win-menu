@@ -24,11 +24,3 @@ pub struct JoinHandles {
     pub keyboard_hook: thread::JoinHandle<()>,
     pub event_handler: thread::JoinHandle<()>,
 }
-
-impl JoinHandles {
-    pub fn join(self) -> thread::Result<()> {
-        self.keyboard_hook.join()?;
-        self.event_handler.join()?;
-        Ok(())
-    }
-}
