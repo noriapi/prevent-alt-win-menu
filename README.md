@@ -14,12 +14,26 @@ custom global keyboard handling or immersive fullscreen UIs.
 
 - Windows only
 
+## Quick Start
+
+Call [`start`] at the beginning of your application. You do **not** need to hold on
+to the returned [`JoinHandles`] unless you explicitly want to `join()` the threads
+or detect their termination.
+
+```rust,no_run
+use prevent_alt_win_menu::event_handler::Config;
+use prevent_alt_win_menu::start;
+
+// Starts the suppression logic in background threads
+let _ = start(Config::default()).expect("failed to start menu suppression");
+```
+
 ## How it works
 
 This crate installs a low-level keyboard hook using `SetWindowsHookExW` and listens
 for `WM_KEYUP` events of:
 
-- `VK_MENU` (Alt key)
+- `VK_MENU` / `VK_LMENU` / `VK_RMENU` (Alt key)
 
 - `VK_LWIN` / `VK_RWIN` (Left/Right Windows key)
 

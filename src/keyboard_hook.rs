@@ -3,7 +3,7 @@
 //! This module registers a system-wide low-level keyboard hook (`WH_KEYBOARD_LL`)
 //! and sends captured events as [`KeyboardEvent`]s through a channel.
 //!
-//! In most cases, it is recommended to use the higher-level API [`prevent_alt_win_menu::start`].
+//! In most cases, it is recommended to use the higher-level API [`crate::start`].
 //! Use this module directly only if you need custom keyboard event handling
 //! or fine-grained control over the hook behavior.
 //!
