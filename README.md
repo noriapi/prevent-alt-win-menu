@@ -1,5 +1,9 @@
 # prevent-alt-win-menu
 
+[![github](https://img.shields.io/badge/repository-noriapi?style=for-the-badge&logo=github&label=github&labelColor=555555)](https://github.com/noriapi/prevent-alt-win-menu)
+[![Crates.io Version](https://img.shields.io/crates/v/prevent-alt-win-menu?style=for-the-badge&logo=rust)](https://crates.io/crates/prevent-alt-win-menu)
+[![docs.rs](https://img.shields.io/docsrs/prevent-alt-win-menu?style=for-the-badge&logo=docs.rs&label=docs.rs)](https://docs.rs/prevent-alt-win-menu)
+
 Prevents the menu bar or Start menu from appearing when the Alt or Windows key is
 released on Windows.
 
