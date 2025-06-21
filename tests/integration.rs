@@ -1,7 +1,7 @@
 use std::{thread, time::Duration};
 
 use uiautomation::{
-    UIAutomation, UIMatcher,
+    UIAutomation, UIElement, UIMatcher,
     errors::{ERR_NOTFOUND, ERR_TIMEOUT},
 };
 
@@ -40,6 +40,7 @@ fn send_win(automation: &UIAutomation) {
     root.send_keys("{Win}", 0).unwrap();
 }
 
+#[track_caller]
 fn assert_no_match(matcher: &UIMatcher) {
     thread::sleep(Duration::from_millis(500));
 
@@ -49,6 +50,7 @@ fn assert_no_match(matcher: &UIMatcher) {
     ));
 }
 
+#[track_caller]
 fn assert_match(matcher: &UIMatcher) {
     assert!(matcher.find_first().is_ok());
 }
@@ -61,6 +63,9 @@ fn start_menu_matcher(automation: &UIAutomation) -> UIMatcher {
         .from_ref(&root)
         .timeout(500)
         .depth(2)
-        .name("Start")
+        .filter_fn(Box::new(|e: &UIElement| {
+            let name = e.get_name()?;
+            Ok(name == "Start" || name == "スタート")
+        }))
         .classname("Windows.UI.Core.CoreWindow")
 }
