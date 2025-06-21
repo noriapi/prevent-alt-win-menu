@@ -4,3 +4,7 @@ serial-integration = { max-threads = 1 }
 [[profile.default.overrides]]
 filter = "kind(test)"
 test-group = "serial-integration"
+
+[profile.ci]
+# Do not cancel the test run on the first failure.
+fail-fast = false
