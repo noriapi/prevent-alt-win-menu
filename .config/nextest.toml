@@ -1,0 +1,12 @@
+[test-groups]
+serial-integration = { max-threads = 1 }
+
+[[profile.default.overrides]]
+filter = "binary(integration)"
+test-group = "serial-integration"
+
+[profile.ci]
+# Do not cancel the test run on the first failure.
+fail-fast = false
+# Do not run integration tests (for now).
+default-filter = "not binary(integration)"
