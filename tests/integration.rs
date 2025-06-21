@@ -61,6 +61,6 @@ fn start_menu_matcher(automation: &UIAutomation) -> UIMatcher {
         .from_ref(&root)
         .timeout(500)
         .depth(2)
-        .name("スタート")
+        .name("Start")
         .classname("Windows.UI.Core.CoreWindow")
 }
