@@ -1,7 +1,6 @@
 use std::{thread, time::Duration};
 
-use prevent_alt_win_menu::event_handler::Config;
-use windows::Win32::UI::Input::KeyboardAndMouse::VK__none_;
+use prevent_alt_win_menu::event_handler::{Config, KeyboardAndMouse::VK__none_};
 
 fn main() {
     #[cfg(feature = "log")]

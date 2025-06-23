@@ -27,6 +27,8 @@ use windows::Win32::{
 
 pub use windows::Win32::UI::WindowsAndMessaging::KBDLLHOOKSTRUCT;
 
+pub use windows::Win32::UI::Input::KeyboardAndMouse;
+
 /// Starts an event-handling thread that processes each received event in a loop.
 ///
 /// # Arguments
